@@ -18,12 +18,16 @@ app.use(cors());
 // ======================================
 // PERSISTENT STORAGE
 // ======================================
-
-// Render Persistent Disk is mounted here
 const STORAGE_PATH = process.env.STORAGE_PATH || "/var/data";
-
-// Upload folder
 const uploadDir = path.join(STORAGE_PATH, "uploads");
+
+console.log("Storage path:", STORAGE_PATH);
+console.log("Upload directory:", uploadDir);
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 
 // Create folder if it doesn't exist
 if (!fs.existsSync(uploadDir)) {
@@ -52,6 +56,7 @@ const storage = multer.diskStorage({
     cb(null, uniqueName);
   },
 });
+
 
 const upload = multer({
   storage,
