@@ -5,42 +5,19 @@ const path = require("path");
 const fs = require("fs");
 
 const app = express();
+const PORT = 5000;
 
-const PORT = process.env.PORT || 5000;
-
-// ======================================
-// CORS
-// ======================================
-
+// Allow React frontend
 app.use(cors());
 
-
-// ======================================
-// PERSISTENT STORAGE
-// ======================================
-const STORAGE_PATH = process.env.STORAGE_PATH || "/var/data";
-const uploadDir = path.join(STORAGE_PATH, "uploads");
-
-console.log("Storage path:", STORAGE_PATH);
-console.log("Upload directory:", uploadDir);
+// Create uploads folder if it doesn't exist
+const uploadDir = path.join(__dirname, "uploads");
 
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+  fs.mkdirSync(uploadDir);
 }
 
-
-// Create folder if it doesn't exist
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, {
-    recursive: true,
-  });
-}
-
-
-// ======================================
-// MULTER CONFIGURATION
-// ======================================
-
+// Configure file storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
@@ -48,18 +25,17 @@ const storage = multer.diskStorage({
 
   filename: (req, file, cb) => {
     const uniqueName =
-      Date.now() +
-      "-" +
-      Math.round(Math.random() * 1e9) +
-      path.extname(file.originalname);
+      Date.now() + "-" + Math.round(Math.random() * 1e9);
 
-    cb(null, uniqueName);
+    cb(
+      null,
+      uniqueName + path.extname(file.originalname)
+    );
   },
 });
 
-
 const upload = multer({
-  storage,
+  storage: storage,
 
   limits: {
     fileSize: 5 * 1024 * 1024, // 5 MB
@@ -74,64 +50,26 @@ const upload = multer({
   },
 });
 
+// Make /uploads publicly accessible
+app.use("/uploads", express.static(uploadDir));
 
-// ======================================
-// SERVE UPLOADED IMAGES
-// ======================================
-
-app.use(
-  "/uploads",
-  express.static(uploadDir)
-);
-
-
-// ======================================
-// UPLOAD API
-// ======================================
-
-app.post(
-  "/upload",
-  upload.single("image"),
-  (req, res) => {
-
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: "No image uploaded",
-      });
-    }
-
-    const imageUrl =
-      `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
-
-    res.json({
-      success: true,
-      filename: req.file.filename,
-      url: imageUrl,
+// Upload API
+app.post("/upload", upload.single("image"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({
+      error: "No image uploaded",
     });
   }
-);
 
+  const imageUrl =
+    `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
 
-// ======================================
-// ERROR HANDLER
-// ======================================
-
-app.use((err, req, res, next) => {
-  console.error(err);
-
-  res.status(500).json({
-    success: false,
-    error: err.message || "Something went wrong",
+  res.json({
+    success: true,
+    url: imageUrl,
   });
 });
 
-
-// ======================================
-// START SERVER
-// ======================================
-
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Upload directory: ${uploadDir}`);
+  console.log(`Server running at http://localhost:${PORT}`);
 });
